@@ -2,6 +2,7 @@ import codecs
 import cStringIO
 import csv
 import os
+from xlwt import Workbook
 
 from django.conf import settings
 from django.contrib import auth
@@ -169,6 +170,33 @@ def twitter_user_csv(request, name=''):
 
 
 @login_required
+def twitter_user_xlsx(request, name=''):
+    fieldnames = ['sfm_id', 'created_at', 'created_at_date', 'twitter_id',
+                  'screen_name', 'followers_count', 'friends_count',
+                  'retweet_count', 'hashtags', 'in_reply_to_screen_name',
+                  'mentions', 'twitter_url', 'is_retweet_strict', 'is_retweet',
+                  'text', 'url1', 'url1_expanded', 'url2', 'url2_expanded']
+    user = get_object_or_404(TwitterUser, name=name)
+    qs_tweets = user.items.order_by('-date_published')
+    new_workbook = Workbook()
+    new_sheet = new_workbook.add_sheet('sheet1')
+    for i in range(0, len(fieldnames)):
+        new_sheet.write(0, i, fieldnames[i])
+    row = 0
+    for t in qs_tweets:
+        row = row+1
+        col = 0
+        for r in range(1, len(t.csv)):
+            new_sheet.write(row, col, t.csv[r])
+            col = col+1
+    response = HttpResponse(content_type='text/ms-excel')
+    response['Content-Disposition'] = \
+        'attachment; filename="%s.xls"' % name
+    new_workbook.save(response)
+    return response
+
+
+@login_required
 def twitter_item(request, id=0):
     item = get_object_or_404(TwitterUserItem, id=int(id))
     return HttpResponse(item.item_json, content_type='application/json')
@@ -218,3 +246,5 @@ class UnicodeCSVWriter:
 
     def out(self):
         return cStringIO.StringIO(self.queue.getvalue())
+
+
